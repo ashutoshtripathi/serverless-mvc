@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Serverless App
+
+Parameters:
+  EnvironmentValue:
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+Resources:
+  App:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location: app.yaml
+      Parameters:
+        EnvironmentValue: !Sub ${EnvironmentValue}
