@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless app - Lambdas
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: java11
+    MemorySize: 2048
+    CodeUri: APP/target/APP-1.0.jar
+    Layers:
+      - !FindInMap [ Environments, !Ref EnvironmentValue, CustomLayer ]
+    VpcConfig:
+      SecurityGroupIds:
+        - !FindInMap [ Environments, !Ref EnvironmentValue, SecurityGroup ]
+      SubnetIds:
+        !FindInMap [ Environments, !Ref EnvironmentValue, Subnets ]
+    Environment:
+      Variables:
+        ENV: !Sub ${EnvironmentValue}
+        JAVA_TOOL_OPTIONS: "-XX:+TieredCompilation -XX:TieredStopAtLevel=1"
+
+    Tags:
+      ENV: !Ref EnvironmentValue
+  Api:
+    EndpointConfiguration: REGIONAL
+Parameters:
+  EnvironmentValue:
+    Type: String
+    AllowedValues:
+      - Dev
+      - Test
+Mappings:
+  Environments:
+    Dev:
+      CustomLayer: 'arn:aws:lambda:us-west-2:xxxxxxxxx:layer:AppLayer:1'
+      RoleCustom: 'arn:aws:iam::xxxxxxxx:role/app-role'
+      SecurityGroup: sg-xxxxxxxxxxxx
+      Subnets:
+        - subnet-xxxxxxxxxxxx
+        - subnet-xxxxxxxxxxxx
+    Test:
+      RoleCustom: 'arn:aws:iam::xxxxxxxxx:role/lambda-role'
+      CustomLayer:'arn:aws:lambda:us-west-2:xxxxxxxxx:layer:AppLayer:1'
+      SecurityGroup: sg-xxxxxxxxxxxx
+      Subnets:
+        - subnet-xxxxxxxxxxxx
+        - subnet-xxxxxxxxxxxx
+        - subnet-xxxxxxxxxxxx
+
+Resources:
+  HelloFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !FindInMap [Environments, !Ref EnvironmentValue, RoleCustom]
+      Handler: com.app.handler.App::handleRequest
+      FunctionName: !Sub 'APP_hello${EnvironmentValue}'
+      Events:
+        HelloAPI:
+          Type: Api
+          Properties:
+            Path: /hello
+            Method: get
+
+Outputs:
+  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
+  # Find out more about other implicit resources you can reference within SAM
+  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
+  APP:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
+
+  HelloFunction:
+    Description: "HelloFunction"
+    Value: !GetAtt HelloFunction.Arn
+    Export:
+      Name: !Sub 'HelloFunction${EnvironmentValue}'
